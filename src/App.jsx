@@ -458,7 +458,6 @@ const VisualNovel = () => {
       imageClass: "wedding-ceremony-image",
       conditional: true,
       requires: 'accept_marriage',
-      onEnter: () => playWeddingBells(),
       type: 'narrative'
     },
     {
