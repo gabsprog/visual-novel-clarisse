@@ -486,7 +486,6 @@ const VisualNovel = () => {
       id: 18,
       background: 'wedding-final',
       text: `De um simples comentário sobre Cálculo até o altar... que jornada incrível vivemos!
-De um simples comentário sobre Cálculo até o altar... que jornada incrível vivemos!
 Cada escolha, cada momento, cada 'sim' nos trouxe até aqui. Das mensagens tímidas às madrugadas conversando, do primeiro 'eu te amo' até este altar sagrado.
 Como uma árvore que cresce forte, nossas raízes se aprofundaram através de risos e lágrimas, sonhos e desafios. Crescemos juntos, nos apoiamos, e descobrimos que éramos verdadeiramente almas gêmeas.
 Agora, como marido e mulher, prometo novamente te amar em cada novo amanhecer, em cada desafio que a vida trouxer, em cada sonho que realizarmos juntos.
