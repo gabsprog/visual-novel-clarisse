@@ -139,13 +139,22 @@ const StarField = ({ showEasterEgg = false, onStarClick }) => {
   );
 };
 
-// Componente de botão
+// Componente de botão corrigido
 const GameButton = ({ children, onClick, variant = 'primary', disabled = false }) => {
+  const handleClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!disabled && onClick) {
+      onClick();
+    }
+  };
+
   return (
     <button
       className={`game-button ${variant} ${disabled ? 'disabled' : ''}`}
-      onClick={onClick}
+      onClick={handleClick}
       disabled={disabled}
+      type="button"
     >
       {children}
     </button>
@@ -158,14 +167,16 @@ const VisualNovel = () => {
   const [isTyping, setIsTyping] = useState(true);
   const [showChoices, setShowChoices] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [showParchment, setShowParchment] = useState(false);
   const [showChapterTitle, setShowChapterTitle] = useState(true);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [gameState, setGameState] = useState({
-    commentResponse: null, // 'interested', 'dry', 'ignored'
-    relationshipLevel: 0, // 0=strangers, 1=friends, 2=dating, 3=engaged, 4=married
-    currentPath: 'main' // main, sad, friendship, romantic, married
+    commentResponse: null,
+    relationshipLevel: 0,
+    currentPath: 'main',
+    choicesMade: []
   });
+  const [currentText, setCurrentText] = useState('');
+  const [hasChosenOption, setHasChosenOption] = useState(false);
 
   // Efeito parallax
   useEffect(() => {
@@ -181,36 +192,44 @@ const VisualNovel = () => {
 
   // Sons
   const playVitaresco = () => {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-    oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.5);
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-    oscillator.start();
-    oscillator.stop(audioContext.currentTime + 0.5);
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.5);
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.5);
+    } catch (error) {
+      console.log('Som não disponível');
+    }
   };
 
   const playWeddingBells = () => {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const frequencies = [523, 659, 784, 523, 659, 784, 1047];
-    frequencies.forEach((freq, index) => {
-      setTimeout(() => {
-        const osc = audioContext.createOscillator();
-        const gain = audioContext.createGain();
-        osc.connect(gain);
-        gain.connect(audioContext.destination);
-        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
-        gain.gain.setValueAtTime(0.2, audioContext.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
-        osc.start();
-        osc.stop(audioContext.currentTime + 0.8);
-      }, index * 300);
-    });
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const frequencies = [523, 659, 784, 523, 659, 784, 1047];
+      frequencies.forEach((freq, index) => {
+        setTimeout(() => {
+          const osc = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          osc.connect(gain);
+          gain.connect(audioContext.destination);
+          osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+          gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
+          osc.start();
+          osc.stop(audioContext.currentTime + 0.8);
+        }, index * 300);
+      });
+    } catch (error) {
+      console.log('Som não disponível');
+    }
   };
 
   const chapters = [
@@ -220,33 +239,35 @@ const VisualNovel = () => {
       chapter: "Capítulo 1",
       chapterTitle: "O Comentário",
       background: 'youtube-comment',
-      text: "3 de março de 2023. Gabel estava assistindo um vídeo sobre Cálculo quando decidiu deixar um comentário sobre integrais. Ele não sabia que esse simples ato mudaria sua vida para sempre...",
-      showChapter: true
+      text: "3 de março de 2023. Gabriel estava assistindo um vídeo sobre Cálculo quando decidiu responder um comentário de um senhor aleatório. Ele não sabia que esse simples ato mudaria sua vida para sempre...",
+      showChapter: true,
+      type: 'narrative'
     },
     {
       id: 1,
       background: 'youtube-comment',
-      text: "💬 'Excelente explicação sobre integrais! Finalmente entendi a regra da substituição. Obrigado!' - comentário de Gabel",
-      choices: null
+      text: "💬 'Q história em bixo 🤣🤣👏👏' - comentário de Gabriel",
+      type: 'narrative'
     },
     {
       id: 2,
       background: 'youtube-comment',
-      text: "Alguns minutos depois... uma notificação aparece. Alguém respondeu seu comentário! Era uma garota chamada Clarisse...",
+      text: "Alguns minutos depois... uma notificação aparece. Alguém respondeu seu comentário! Era uma garota chamada clarisse...",
+      type: 'choice',
       choices: [
         { 
-          text: "💬 'Que bom que ajudou! Também tive dificuldade com isso antes ☺️'", 
-          nextText: "Clarisse respondeu com gentileza e um sorriso. Havia algo caloroso naquela resposta que fez o coração de Gabel acelerar.",
+          text: "💬 'estranhamente, o seu nome e sua foto de perfil se complementam e isso me conforta.'", 
+          nextText: "Clarisse respondeu intrigada. Havia algo caloroso naquela resposta que fez o coração de Gabriel acelerar.",
           action: 'interested_response'
         },
         { 
-          text: "🙃 'É, é básico mesmo.'", 
-          nextText: "A resposta foi um pouco seca. Gabel ficou sem saber se havia algo errado ou se era só o jeito dela...",
+          text: "🙃 'para de usar emoji, é estranho.'", 
+          nextText: "A resposta foi um pouco seca. Gabriel ficou sem saber se havia algo errado ou se era só o jeito dela...",
           action: 'dry_response'
         },
         { 
           text: "💔 [Ela não responde]", 
-          nextText: "O silêncio ecoou. Talvez ela não tivesse visto, ou talvez o comentário não tenha chamado atenção. Gabel ficou um pouco triste.",
+          nextText: "O silêncio ecoou. Talvez ela não tivesse visto, ou talvez o comentário não tenha chamado atenção. Gabriel nunca foi feliz.",
           action: 'ignored'
         }
       ]
@@ -258,24 +279,26 @@ const VisualNovel = () => {
       chapter: "Capítulo 2",
       chapterTitle: "A Amizade Floresce",
       background: 'chat-warmth',
-      text: "Nos dias seguintes, Gabel e Clarisse continuaram conversando. O que começou como ajuda com matemática se transformou em longas conversas sobre a vida...",
+      text: "Nos dias seguintes, Gabriel e Clarisse continuaram conversando. O que começou com um comentário em um vídeo, se transformou em longas conversas sobre a vida, onde um se preocupava cada vez mais com o outro. Spoiler alert: Uma vez Clarisse disse que Gabriel foi como alguém que a pegou da rua na chuva e a colocou em uma casa com comida e cobertor...",
       showChapter: true,
       conditional: true,
-      requires: 'interested_response'
+      requires: 'interested_response',
+      type: 'narrative'
     },
     {
       id: 4,
       background: 'chat-warmth',
       text: "16 de janeiro de 2024 - 2:30 da manhã. Eles ainda estavam conversando...",
+      type: 'choice',
       choices: [
         { 
           text: "📱 Continuar só por mensagens", 
-          nextText: "As mensagens fluíam naturalmente. Cada notificação trazia um sorriso ao rosto de Gabel.",
+          nextText: "As mensagens fluíam naturalmente. Cada notificação trazia um sorriso ao rosto de Gabriel.",
           action: 'text_only'
         },
         { 
-          text: "🎧 'Que tal uma call? Quero ouvir sua voz'", 
-          nextText: "27 de abril - A primeira chamada. Quando Gabel ouviu a voz de Clarisse, soube que estava perdido. Era a voz mais doce que já havia escutado.",
+          text: "🎧 'PERA EU VOU TELEFONAR, VC TEM QUE ESCUTAR E FICAR CALADO TA'", 
+          nextText: "27 de abril - A primeira chamada. Quando Gabriel ouviu a voz de Clarisse, soube que estava perdido. Era a voz mais doce que já havia escutado. (e a mais divertida e fofa também)",
           action: 'voice_calls'
         }
       ],
@@ -289,24 +312,26 @@ const VisualNovel = () => {
       chapter: "Capítulo 2",
       chapterTitle: "Construindo Pontes",
       background: 'slow-build',
-      text: "Apesar da resposta inicial um pouco fria, Gabel decidiu não desistir. Talvez Clarisse fosse apenas tímida ou cautelosa...",
+      text: "Apesar da resposta inicial um pouco fria, Gabriel se interessou pelo canal daquela garota. Ao ver sua comunidade, ele percebeu que havia muito mais por trás daquela tela.",
       showChapter: true,
       conditional: true,
-      requires: 'dry_response'
+      requires: 'dry_response',
+      type: 'narrative'
     },
     {
       id: 6,
       background: 'slow-build',
-      text: "Com paciência e carinho, Gabel continuou tentando conhecê-la melhor. Pequenos gestos, comentários gentis, sempre respeitando o espaço dela...",
+      text: "Com muita curiosidade, Gabriel continuou tentando conhecê-la melhor. Pequenos gestos, comentários atenciosos, sempre respeitando o espaço dela...",
+      type: 'choice',
       choices: [
         { 
           text: "❤️ 'Ela começou a se abrir comigo'", 
-          nextText: "Aos poucos, as barreiras foram caindo. Clarisse começou a confiar em Gabel, e suas conversas ficaram mais calorosas.",
+          nextText: "Aos poucos, as barreiras foram caindo. Clarisse começou a confiar em Gabriel, e suas conversas ficaram mais calorosas.",
           action: 'breakthrough'
         },
         { 
           text: "😔 'Ainda mantém distância'", 
-          nextText: "Apesar dos esforços de Gabel, Clarisse mantinha uma certa frieza. Talvez fosse melhor aceitar que seriam apenas conhecidos.",
+          nextText: "Apesar dos esforços de Gabriel, Clarisse mantinha uma certa frieza. Talvez fosse melhor aceitar que seriam apenas conhecidos.",
           action: 'distant_friends'
         }
       ],
@@ -320,11 +345,12 @@ const VisualNovel = () => {
       chapter: "Epílogo",
       chapterTitle: "O Amor Não Floresceu",
       background: 'sad-ending',
-      text: "Às vezes o amor não é correspondido. Às vezes uma semente plantada não encontra solo fértil para crescer. Gabel aprendeu que nem todas as histórias têm final feliz, mas ainda assim, sonhar vale a pena...",
+      text: "Bem, resposta errada. Gabriel e Clarisse são almas gêmeas predestinadas, e não há espaço para finais tristes nesta história. Jogue novamente e escolha melhor da próxima vez!",
       showChapter: true,
       conditional: true,
       requires: 'ignored',
-      isEnding: true
+      isEnding: true,
+      type: 'narrative'
     },
 
     // CAPÍTULO 3 - O CRESCIMENTO DO AMOR
@@ -333,26 +359,27 @@ const VisualNovel = () => {
       chapter: "Capítulo 3",
       chapterTitle: "Raízes do Amor",
       background: 'love-growth',
-      text: "25 de julho de 2024 - O dia em que tudo mudou. Gabel e Clarisse não apenas disseram 'eu te amo' - eles decidiram namorar oficialmente. Era o início de uma jornada ainda mais profunda...",
+      text: "25 de julho de 2024 - O dia em que tudo mudou. Gabriel e Clarisse não apenas disseram 'eu te amo', eles haviam descoberto um amor profundo e verdadeiro, algo que estava destinado a acontecer, e que finalmente floresceu. Era o início de uma jornada ainda mais profunda...",
       showChapter: true,
       conditional: true,
-      requires: ['interested_response', 'breakthrough']
+      requires: ['interested_response', 'voice_calls'],
+      type: 'narrative'
     },
     {
       id: 9,
       background: 'love-journey',
       text: "Os meses que se seguiram foram como uma árvore crescendo... As raízes do seu amor foram se aprofundando e se fixando cada vez mais, como uma árvore imortal. Eles cresceram juntos, vencendo e amadurecendo com todas as dificuldades da vida.",
-      choices: null,
       conditional: true,
-      requires: ['interested_response', 'breakthrough']
+      requires: ['interested_response', 'voice_calls'],
+      type: 'narrative'
     },
     {
       id: 10,
       background: 'love-journey',
       text: "Passaram por dias tristes e difíceis, onde se apoiaram mutuamente com força e carinho. Viveram dias felizes e de muito amor, onde riram até a barriga doer, sonharam juntos, e descobriram que eram verdadeiramente almas gêmeas. Cada lágrima e cada sorriso os tornava mais unidos.",
-      choices: null,
       conditional: true,
-      requires: ['interested_response', 'breakthrough']
+      requires: ['interested_response', 'voice_calls'],
+      type: 'narrative'
     },
 
     // CAPÍTULO 4 - PEDIDO DE CASAMENTO
@@ -361,47 +388,51 @@ const VisualNovel = () => {
       chapter: "Capítulo 4",
       chapterTitle: "A Grande Pergunta",
       background: 'proposal-moment',
-      text: "1 ano e meio depois... Gabel sabia que chegara a hora. Depois de tudo que viveram juntos, tinha certeza absoluta: queria Clarisse como sua esposa para sempre. Seu coração batia forte enquanto segurava o anel que mudaria suas vidas...",
+      text: "Certo tempo depois... Gabriel sabia que chegara a hora. Depois de tudo que viveram juntos, tinha certeza absoluta: queria Clarisse como sua esposa para sempre. Seu coração batia forte enquanto segurava o anel que levaria ao que sempre desejavam...",
       showChapter: true,
       conditional: true,
-      requires: ['interested_response', 'breakthrough'],
-      image: '/images/proposal.jpg'
+      requires: ['interested_response', 'voice_calls'],
+      type: 'narrative'
     },
     {
       id: 12,
       background: 'proposal-moment',
-      text: "💍 Gabel se ajoelha com um anel brilhante na mão: 'Clarisse, meu amor... depois de tudo que vivemos juntos, você quer se casar comigo? Quer ser minha esposa para sempre? ❤️'",
+      text: "💍 Gabriel se ajoelha com um anel brilhante na mão: 'Clarisse, meu amor... depois de tudo que vivemos juntos, você quer se casar comigo? Quer ser minha esposa para sempre? ❤️'",
+      image: "/images/proposal.jpg",
+      imageAlt: "Pedido de casamento romântico com anel",
+      imageClass: "proposal-image",
+      type: 'choice',
       choices: [
         { 
           text: "💍 'SIM! Quero me casar com você!'", 
-          nextText: "'SIM! Mil vezes sim! Quero ser sua esposa! Você é o amor da minha vida, Gabel! 💕💕💕'",
+          nextText: "'SIM! Mil vezes sim! Quero ser sua esposa! Você é o amor da minha vida, Gabriel! 💕💕💕'",
           action: 'accept_marriage'
         },
         { 
           text: "😅 'É muito cedo... vamos esperar mais um pouco'", 
-          nextText: "'Gabel... eu te amo muito, mas acho que é muito cedo para casamento. Podemos esperar mais um pouco? Quero ter certeza... 💜'",
+          nextText: "'Gabriel... eu te amo muito, mas acho que é muito cedo para casamento. Podemos esperar mais um pouco? Quero ter certeza... 💜'",
           action: 'hesitant_marriage'
         },
         { 
           text: "❌ 'Não estou pronta para casar'", 
-          nextText: "'Gabel... você é incrível e te amo, mas não me sinto pronta para o casamento ainda. Podemos continuar namorando? 💙'",
+          nextText: "'Gabriel... você é incrível e te amo, mas não me sinto pronta para o casamento ainda. Podemos continuar namorando? 💙'",
           action: 'not_ready_marriage'
         }
       ],
       conditional: true,
-      requires: ['interested_response', 'breakthrough'],
-      image: '/images/proposal.jpg'
+      requires: ['interested_response', 'voice_calls']
     },
 
     // NOIVADO (se ela aceitou casar)
     {
       id: 13,
       background: 'engagement',
-      text: "💕 Clarisse estava radiante! Gabel colocou o anel de noivado em seu dedo e eles se abraçaram emocionados. Era oficial - estavam noivos! O sonho de uma vida juntos estava se tornando realidade.",
-      choices: null,
+      text: "💕 Clarisse estava radiante! Gabriel colocou o anel de noivado em seu dedo e eles se abraçaram emocionados. Era oficial - estavam noivos! O sonho de uma vida juntos estava se tornando realidade.",
+      image: "/images/engagement.jpg",
+      imageAlt: "Casal feliz após noivado",
       conditional: true,
       requires: 'accept_marriage',
-      image: '/images/engagement.jpg'
+      type: 'narrative'
     },
 
     // CAPÍTULO 5 - CASAMENTO (Final Feliz Completo)
@@ -411,76 +442,127 @@ const VisualNovel = () => {
       chapterTitle: "Para Sempre Juntos",
       background: 'wedding-preparation',
       text: "6 meses depois... O grande dia chegou! Era o dia mais esperado de suas vidas. Família e amigos reunidos, flores por toda parte, música suave, e dois corações prestes a se unirem para sempre...",
+      image: "/images/wedding.jpg",
+      imageAlt: "Preparação para casamento",
       showChapter: true,
       conditional: true,
       requires: 'accept_marriage',
-      image: '/images/wedding.jpg'
+      type: 'narrative'
     },
     {
       id: 15,
       background: 'wedding-ceremony',
-      text: "'Aceita Clarisse como sua esposa, para amá-la e respeitá-la, na alegria e na tristeza, na saúde e na doença?' 'SIM!' 'Aceita Gabel como seu marido?' 'SIM!' 'Podem se beijar!' 💒💕",
-      choices: null,
+      text: "'Aceita Clarisse como sua esposa, para amá-la e respeitá-la, na alegria e na tristeza, na saúde e na doença?' 'SIM!' 'Aceita Gabriel como seu marido?' 'SIM!' 'Podem se beijar!' 💒💕",
+      image: "/images/wedding.jpg",
+      imageAlt: "Cerimônia de casamento",
+      imageClass: "wedding-ceremony-image",
       conditional: true,
       requires: 'accept_marriage',
-      image: '/images/wedding.jpg',
-      onEnter: () => playWeddingBells()
+      onEnter: () => playWeddingBells(),
+      type: 'narrative'
     },
     {
       id: 16,
       background: 'wedding-ceremony',
       text: "🎉 A festa foi mágica! Votos emocionantes que fizeram todos chorarem, alianças trocadas com mãos trêmulas de emoção, o beijo mais apaixonado de suas vidas, e uma celebração inesquecível com todos que amavam.",
-      choices: null,
+      image: "/images/wedding.jpg",
+      imageAlt: "Festa de casamento",
       conditional: true,
       requires: 'accept_marriage',
-      image: '/images/wedding.jpg'
+      type: 'narrative'
     },
     {
       id: 17,
       background: 'honeymoon-night',
-      text: "🌙 Naquela noite... finalmente sozinhos como marido e mulher. Sob um céu estrelado, em perfeita harmonia, Gabel e Clarisse selaram seu amor da forma mais íntima e bela. Dormindo abraçados, sonharam com uma vida inteira de amor, cumplicidade e aventuras juntos. ✨💕",
-      choices: null,
+      text: "🌙 Naquela noite... finalmente sozinhos como marido e mulher. Sob um céu estrelado, em perfeita harmonia, Gabriel e Clarisse selaram seu amor da forma mais íntima e bela. Dormindo abraçados, sonharam com uma vida inteira de amor, cumplicidade e aventuras juntos. ✨💕",
+      image: "/images/honeymoon.jpg",
+      imageAlt: "Lua de mel romântica",
       conditional: true,
       requires: 'accept_marriage',
-      image: '/images/honeymoon.jpg'
+      type: 'narrative'
     },
 
-    // FINAL ÉPICO - CASAMENTO COM CARTA
+    // FINAL ÉPICO - CASAMENTO COM TEXTO
     {
       id: 18,
       background: 'wedding-final',
       text: `De um simples comentário sobre Cálculo até o altar... que jornada incrível vivemos!
-
+De um simples comentário sobre Cálculo até o altar... que jornada incrível vivemos!
 Cada escolha, cada momento, cada 'sim' nos trouxe até aqui. Das mensagens tímidas às madrugadas conversando, do primeiro 'eu te amo' até este altar sagrado.
-
 Como uma árvore que cresce forte, nossas raízes se aprofundaram através de risos e lágrimas, sonhos e desafios. Crescemos juntos, nos apoiamos, e descobrimos que éramos verdadeiramente almas gêmeas.
-
-Agora, como marido e mulher, prometo te amar em cada novo amanhecer, em cada desafio que a vida trouxer, em cada sonho que realizarmos juntos.
-
-Nossa equação do amor está completa: EU + VOCÊ = PARA SEMPRE 💕`,
-      choices: null,
+Agora, como marido e mulher, prometo novamente te amar em cada novo amanhecer, em cada desafio que a vida trouxer, em cada sonho que realizarmos juntos.
+Te amo para sempre 💕`,
+      image: "/images/wedding.jpg",
+      imageAlt: "Final épico do casamento",
       conditional: true,
       requires: 'accept_marriage',
-      image: '/images/wedding.jpg',
-      isEnding: false
+      type: 'narrative'
     },
 
     // FINAL DEFINITIVO - FELIZES PARA SEMPRE
     {
       id: 19,
       background: 'eternal-love',
-      text: `E assim, Gabel e Clarisse viveram felizes para sempre...
+      text: `E assim, Gabriel e Clarisse viveram felizes para sempre...
 
 Construíram uma família linda, enfrentaram juntos todos os desafios da vida, riram juntos todos os dias, e envelheceram de mãos dadas.
 
 Sua história de amor, que começou com um simples comentário sobre matemática, se tornou a mais bela equação da vida: amor verdadeiro, eterno e infinito.
 
 💕 FIM 💕`,
-      choices: null,
+      image: "/images/family.jpg",
+      imageAlt: "Família feliz para sempre",
       conditional: true,
       requires: 'accept_marriage',
-      image: '/images/family.jpg',
-      isEnding: true
+      isEnding: true,
+      type: 'narrative'
+    },
+    {
+      id: 16,
+      background: 'wedding-ceremony',
+      text: "🎉 A festa foi mágica! Votos emocionantes que fizeram todos chorarem, alianças trocadas com mãos trêmulas de emoção, o beijo mais apaixonado de suas vidas, e uma celebração inesquecível com todos que amavam.",
+      conditional: true,
+      requires: 'accept_marriage',
+      type: 'narrative'
+    },
+    {
+      id: 17,
+      background: 'honeymoon-night',
+      text: "🌙 Naquela noite... finalmente sozinhos como marido e mulher. Sob um céu estrelado, em perfeita harmonia, Gabriel e Clarisse selaram seu amor da forma mais íntima e bela. Dormindo abraçados, sonharam com uma vida inteira de amor, cumplicidade e aventuras juntos. ✨💕",
+      conditional: true,
+      requires: 'accept_marriage',
+      type: 'narrative'
+    },
+
+    // FINAL ÉPICO - CASAMENTO COM TEXTO
+    {
+      id: 18,
+      background: 'wedding-final',
+      text: `De um simples comentário sobre Cálculo até o altar... que jornada incrível vivemos!
+Cada escolha, cada momento, cada 'sim' nos trouxe até aqui. Das mensagens tímidas às madrugadas conversando, do primeiro 'eu te amo' até este altar sagrado.
+Como uma árvore que cresce forte, nossas raízes se aprofundaram através de risos e lágrimas, sonhos e desafios. Crescemos juntos, nos apoiamos, e descobrimos que éramos verdadeiramente almas gêmeas.
+Agora, como marido e mulher, prometo novamente te amar em cada novo amanhecer, em cada desafio que a vida trouxer, em cada sonho que realizarmos juntos.
+Te amo para sempre 💕`,
+      conditional: true,
+      requires: 'accept_marriage',
+      type: 'narrative'
+    },
+
+    // FINAL DEFINITIVO - FELIZES PARA SEMPRE
+    {
+      id: 19,
+      background: 'eternal-love',
+      text: `E assim, Gabriel e Clarisse viveram felizes para sempre...
+
+Construíram uma família linda, enfrentaram juntos todos os desafios da vida, riram juntos todos os dias, e envelheceram de mãos dadas.
+
+Sua história de amor, que começou com um simples comentário sobre matemática, se tornou a mais bela equação da vida: amor verdadeiro, eterno e infinito.
+
+💕 FIM 💕`,
+      conditional: true,
+      requires: 'accept_marriage',
+      isEnding: true,
+      type: 'narrative'
     },
 
     // FINAIS ALTERNATIVOS
@@ -489,11 +571,12 @@ Sua história de amor, que começou com um simples comentário sobre matemática
       chapter: "Capítulo 5",
       chapterTitle: "Esperando o Momento Certo",
       background: 'open-ending',
-      text: "Gabel e Clarisse continuaram namorando, construindo sua base ainda mais sólida. Sabiam que o casamento viria no momento perfeito, quando ambos estivessem completamente prontos para dar esse passo...",
+      text: "Gabriel e Clarisse continuaram namorando, construindo sua base ainda mais sólida. Sabiam que o casamento viria no momento perfeito, quando ambos estivessem completamente prontos para dar esse passo...",
       showChapter: true,
       conditional: true,
       requires: 'hesitant_marriage',
-      isEnding: true
+      isEnding: true,
+      type: 'narrative'
     },
 
     {
@@ -501,47 +584,94 @@ Sua história de amor, que começou com um simples comentário sobre matemática
       chapter: "Capítulo 5", 
       chapterTitle: "Amor Sem Pressa",
       background: 'dating-ending',
-      text: "O amor de Gabel e Clarisse continuou florescendo no ritmo deles. Não havia pressa - tinham toda uma vida pela frente para construir seus sonhos juntos, passo a passo...",
+      text: "O amor de Gabriel e Clarisse continuou florescendo no ritmo deles. Não havia pressa - tinham toda uma vida pela frente para construir seus sonhos juntos, passo a passo...",
       showChapter: true,
       conditional: true,
       requires: 'not_ready_marriage',
-      isEnding: true
+      isEnding: true,
+      type: 'narrative'
+    },
+
+    // FINAL AMIZADE (se ela ficou distante)
+    {
+      id: 22,
+      chapter: "Epílogo",
+      chapterTitle: "Uma Bela Amizade",
+      background: 'friendship-ending',
+      text: "Resposta errada. Gabriel e Clarisse são almas gêmeas predestinadas, eles não poderiam, nem aguentariam ficar apenas como amigos. Jogue novamente e escolha melhor da próxima vez!",
+      showChapter: true,
+      conditional: true,
+      requires: 'distant_friends',
+      isEnding: true,
+      type: 'narrative'
+    },
+
+    // FINAL ALTERNATIVO BREAKTHROUGH
+    {
+      id: 23,
+      chapter: "Capítulo 3",
+      chapterTitle: "Amor Conquistado",
+      background: 'love-growth',
+      text: "Depois de tanto esforço e paciência, Gabriel conquistou o coração de Clarisse. O que começou frio se transformou em um amor caloroso e verdadeiro. Às vezes, os melhores amores são aqueles que precisam ser conquistados aos poucos...",
+      showChapter: true,
+      conditional: true,
+      requires: 'breakthrough',
+      type: 'narrative'
+    },
+    {
+      id: 24,
+      background: 'love-journey',
+      text: "Gabriel e Clarisse descobriram que o amor verdadeiro não surge sempre à primeira vista. Às vezes, ele nasce da paciência, do cuidado e da persistência respeitosa. Seu amor, construído tijolo por tijolo, se tornou ainda mais sólido.",
+      conditional: true,
+      requires: 'breakthrough',
+      isEnding: true,
+      type: 'narrative'
+    },
+
+    // FINAL TEXT ONLY
+    {
+      id: 25,
+      chapter: "Capítulo 3",
+      chapterTitle: "Amor Digital",
+      background: 'chat-warmth',
+      text: "Gabriel e Clarisse continuaram sua história através de mensagens. Cada palavra digitada carregava amor, cada emoji expressava carinho. Provaram que o amor verdadeiro pode florescer mesmo através de uma tela, quando os corações estão conectados...",
+      showChapter: true,
+      conditional: true,
+      requires: 'text_only',
+      isEnding: true,
+      type: 'narrative'
     }
   ];
 
-  const [currentText, setCurrentText] = useState('');
-  const [hasChosenOption, setHasChosenOption] = useState(false);
-
-  // Obter texto dinâmico da carta - REMOVIDO (não usa mais carta)
-  const getFinalLetter = () => {
-    return ""; // Não usa mais carta
+  // Verificar se os requisitos são atendidos
+  const meetsRequirements = (requires) => {
+    if (!requires) return true;
+    
+    if (Array.isArray(requires)) {
+      return requires.every(req => gameState.choicesMade.includes(req));
+    }
+    
+    return gameState.choicesMade.includes(requires);
   };
 
+  // Função para lidar com escolhas
   const handleChoice = (choice) => {
     console.log('Choice selected:', choice.action);
     
     // Atualizar estado do jogo
-    if (choice.action === 'interested_response') {
-      setGameState(prev => ({ ...prev, commentResponse: 'interested', currentPath: 'romantic' }));
-    } else if (choice.action === 'dry_response') {
-      setGameState(prev => ({ ...prev, commentResponse: 'dry', currentPath: 'slow' }));
-    } else if (choice.action === 'ignored') {
-      setGameState(prev => ({ ...prev, commentResponse: 'ignored', currentPath: 'sad' }));
-    } else if (choice.action === 'accept_marriage') {
-      setGameState(prev => {
-        const newState = { ...prev, relationshipLevel: 4, currentPath: 'married' };
-        console.log('Setting married state:', newState);
-        return newState;
-      });
-    } else if (choice.action === 'hesitant_marriage') {
-      setGameState(prev => ({ ...prev, relationshipLevel: 3, currentPath: 'waiting' }));
-    } else if (choice.action === 'not_ready_marriage') {
-      setGameState(prev => ({ ...prev, relationshipLevel: 2, currentPath: 'dating' }));
-    } else if (choice.action === 'breakthrough') {
-      setGameState(prev => ({ ...prev, currentPath: 'romantic' }));
-    } else if (choice.action === 'distant_friends') {
-      setGameState(prev => ({ ...prev, currentPath: 'friendship' }));
-    }
+    const newChoicesMade = [...gameState.choicesMade, choice.action];
+    
+    setGameState(prev => ({
+      ...prev,
+      choicesMade: newChoicesMade,
+      commentResponse: choice.action.includes('response') ? choice.action : prev.commentResponse,
+      currentPath: choice.action === 'accept_marriage' ? 'married' : 
+                   choice.action === 'hesitant_marriage' ? 'waiting' :
+                   choice.action === 'not_ready_marriage' ? 'dating' :
+                   choice.action === 'breakthrough' ? 'romantic' :
+                   choice.action === 'distant_friends' ? 'friendship' :
+                   choice.action === 'ignored' ? 'sad' : prev.currentPath
+    }));
 
     setCurrentText(choice.nextText);
     setShowChoices(false);
@@ -556,56 +686,45 @@ Sua história de amor, que começou com um simples comentário sobre matemática
     while (nextSceneIndex < chapters.length) {
       const nextChapter = chapters[nextSceneIndex];
       
-      if (nextChapter.conditional) {
-        const meetsRequirements = Array.isArray(nextChapter.requires) 
-          ? nextChapter.requires.some(req => 
-              gameState.commentResponse === req || 
-              gameState.currentPath === req ||
-              (req === 'interested_response' && gameState.commentResponse === 'interested') ||
-              (req === 'breakthrough' && gameState.currentPath === 'romantic') ||
-              (req === 'accept_marriage' && gameState.currentPath === 'married')
-            )
-          : gameState.commentResponse === nextChapter.requires || 
-            gameState.currentPath === nextChapter.requires ||
-            (nextChapter.requires === 'interested_response' && gameState.commentResponse === 'interested') ||
-            (nextChapter.requires === 'breakthrough' && gameState.currentPath === 'romantic') ||
-            (nextChapter.requires === 'accept_marriage' && gameState.currentPath === 'married');
-            
-        if (!meetsRequirements) {
-          nextSceneIndex++;
-          continue;
-        }
+      // Se a cena é condicional e os requisitos não são atendidos, pular
+      if (nextChapter.conditional && !meetsRequirements(nextChapter.requires)) {
+        nextSceneIndex++;
+        continue;
       }
       break;
     }
 
-    if (nextSceneIndex < chapters.length) {
-      setIsTransitioning(true);
-      setTimeout(() => {
-        setCurrentScene(nextSceneIndex);
-        const nextChapter = chapters[nextSceneIndex];
-        
-        // Não usa mais carta - texto já definido nas cenas
-        setCurrentText(nextChapter.text);
-        
-        setIsTyping(true);
-        setShowChoices(false);
-        setHasChosenOption(false);
-        setShowChapterTitle(nextChapter.showChapter || false);
-        setIsTransitioning(false);
-        
-        // Não usa mais pergaminho
-        if (nextChapter.onEnter) {
-          nextChapter.onEnter();
-        }
-      }, 500);
+    // Se chegou ao fim
+    if (nextSceneIndex >= chapters.length) {
+      handleGameEnd();
+      return;
     }
+
+    const nextChapter = chapters[nextSceneIndex];
+    
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setCurrentScene(nextSceneIndex);
+      
+      setCurrentText(nextChapter.text);
+      setIsTyping(true);
+      setShowChoices(false);
+      setHasChosenOption(false);
+      setShowChapterTitle(nextChapter.showChapter || false);
+      setIsTransitioning(false);
+      
+      if (nextChapter.onEnter) {
+        nextChapter.onEnter();
+      }
+    }, 500);
   };
 
   const handleTypingComplete = () => {
     setIsTyping(false);
     const currentChapter = chapters[currentScene];
-    if (currentChapter.choices && !hasChosenOption) {
+    
+    // Se é uma cena de escolha e ainda não foi escolhida uma opção
+    if (currentChapter.type === 'choice' && !hasChosenOption) {
       setShowChoices(true);
     }
   };
@@ -616,7 +735,19 @@ Sua história de amor, que começou com um simples comentário sobre matemática
     setIsTyping(true);
   };
 
+  const handleGameEnd = () => {
+    alert('Fim da história!\n\nRefresh da página para jogar novamente!');
+    window.location.reload();
+  };
+
   const currentChapter = chapters[currentScene];
+
+  // Inicializar o primeiro texto
+  useEffect(() => {
+    if (currentScene === 0 && !currentText && !showChapterTitle) {
+      setCurrentText(chapters[0].text);
+    }
+  }, [currentScene, currentText, showChapterTitle]);
 
   return (
     <div className={`visual-novel ${isTransitioning ? 'transitioning' : ''}`}>
@@ -645,7 +776,7 @@ Sua história de amor, que começou com um simples comentário sobre matemática
         )}
         
         {/* Corações flutuantes para cenas românticas */}
-        {currentChapter.background.includes('proposal') || currentChapter.background.includes('wedding') && (
+        {(currentChapter.background.includes('proposal') || currentChapter.background.includes('wedding')) && (
           <div className="floating-hearts">
             {Array.from({ length: 15 }, (_, i) => (
               <div key={i} className="heart" style={{
@@ -658,12 +789,12 @@ Sua história de amor, que começou com um simples comentário sobre matemática
         )}
       </div>
 
-      {/* Imagem da cena */}
-      {currentChapter.image && (
+      {/* Imagens especiais para cenas importantes */}
+      {!showChapterTitle && currentChapter.image && (
         <SceneImage 
           src={currentChapter.image} 
-          alt={`${currentChapter.chapter} - ${currentChapter.chapterTitle}`}
-          className="main-scene-image"
+          alt={currentChapter.imageAlt || "Cena da história"} 
+          className={currentChapter.imageClass || ""}
         />
       )}
 
@@ -681,7 +812,7 @@ Sua história de amor, que começou com um simples comentário sobre matemática
           </div>
 
           {/* Botões de escolha */}
-          {showChoices && currentChapter.choices && (
+          {showChoices && currentChapter.type === 'choice' && currentChapter.choices && (
             <div className="choices-container">
               {currentChapter.choices.map((choice, index) => (
                 <GameButton
@@ -700,10 +831,10 @@ Sua história de amor, que começou com um simples comentário sobre matemática
             <div className="continue-container">
               {currentChapter.isEnding ? (
                 <GameButton 
-                  onClick={() => alert('Fim da história! Obrigado por jogar nossa Visual Novel! 💕')} 
+                  onClick={handleGameEnd} 
                   variant="final"
                 >
-                  Fim ✨
+                  🎮 Jogar Novamente ✨
                 </GameButton>
               ) : (
                 <GameButton onClick={handleContinue}>
@@ -971,8 +1102,19 @@ Sua história de amor, que começou com um simples comentário sobre matemática
           animation: friendshipGlow 3s ease-in-out infinite;
         }
 
-        .scene-background.parchment {
-          background: linear-gradient(45deg, #8b4513 0%, #d2691e 100%);
+        .scene-background.engagement {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+          position: relative;
+        }
+
+        .scene-background.engagement::after {
+          content: '💍👰🤵💕';
+          position: absolute;
+          top: 15%;
+          left: 50%;
+          transform: translateX(-50%);
+          font-size: 2.5rem;
+          animation: engagementSparkle 3s ease-in-out infinite;
         }
 
         @keyframes commentFloat {
@@ -1005,6 +1147,11 @@ Sua história de amor, que começou com um simples comentário sobre matemática
           50% { transform: translateX(-50%) scale(1.1); }
         }
 
+        @keyframes engagementSparkle {
+          0%, 100% { transform: translateX(-50%) scale(1) rotate(0deg); text-shadow: 0 0 15px gold; }
+          50% { transform: translateX(-50%) scale(1.15) rotate(10deg); text-shadow: 0 0 25px gold; }
+        }
+
         @keyframes nightGlow {
           from { text-shadow: 0 0 10px rgba(255, 255, 255, 0.8); }
           to { text-shadow: 0 0 25px rgba(255, 192, 203, 1); }
@@ -1013,6 +1160,11 @@ Sua história de amor, que começou com um simples comentário sobre matemática
         @keyframes friendshipGlow {
           0%, 100% { opacity: 0.8; transform: scale(1); }
           50% { opacity: 1; transform: scale(1.1); }
+        }
+
+        @keyframes treeGrowth {
+          0%, 100% { transform: scale(1) rotate(-2deg); }
+          50% { transform: scale(1.1) rotate(2deg); }
         }
 
         .star-field {
@@ -1076,19 +1228,66 @@ Sua história de amor, que começou com um simples comentário sobre matemática
 
         .scene-image-container {
           position: absolute;
-          top: 10%;
-          right: 5%;
-          width: 500px;
-          height: 500px;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 1000px;
+          height: 1000px;
           border-radius: 15px;
           overflow: hidden;
           box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
           z-index: 5;
+          border: 3px solid rgba(255, 255, 255, 0.8);
+          animation: imageAppear 1s ease-out;
+        }
+
+        .proposal-image {
+          width: 1000px !important;
+          height: 1000px !important;
+          top: 50% !important;
+          left: 50% !important;
+          transform: translate(-50%, -50%) !important;
+          border: 4px solid gold !important;
+          box-shadow: 0 15px 40px rgba(255, 215, 0, 0.5) !important;
+          animation: proposalGlow 2s ease-in-out infinite alternate, imageAppear 1s ease-out !important;
+        }
+
+        .wedding-ceremony-image {
+          width: 1000px !important;
+          height: 1000px !important;
+          top: 50% !important;
+          left: 50% !important;
+          transform: translate(-50%, -50%) !important;
+          border: 3px solid rgba(255, 255, 255, 0.9) !important;
+          box-shadow: 0 12px 35px rgba(255, 255, 255, 0.4) !important;
+        }
+
+        @keyframes imageAppear {
+          from { 
+            opacity: 0; 
+            transform: translate(-50%, -50%) scale(0.8) rotate(-5deg); 
+          }
+          to { 
+            opacity: 1; 
+            transform: translate(-50%, -50%) scale(1) rotate(0deg); 
+          }
+        }
+
+        @keyframes proposalGlow {
+          from { 
+            box-shadow: 0 15px 40px rgba(255, 215, 0, 0.5);
+            transform: translate(-50%, -50%) scale(1);
+          }
+          to { 
+            box-shadow: 0 20px 50px rgba(255, 215, 0, 0.8);
+            transform: translate(-50%, -50%) scale(1.02);
+          }
         }
 
         .main-scene-image {
-          top: 1%;
-          right: 25%;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
           width: 1000px;
           height: 1000px;
         }
@@ -1137,82 +1336,6 @@ Sua história de amor, que começou com um simples comentário sobre matemática
             transform: translateY(0);
             opacity: 1;
           }
-        }
-
-        .parchment-container {
-          margin: 5%;
-          height: 80vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .parchment {
-          width: 90%;
-          max-width: 800px;
-          height: 70vh;
-          background: linear-gradient(45deg, #f4e4bc 0%, #f0d997 100%);
-          border-radius: 10px;
-          position: relative;
-          transform: scaleY(0);
-          transform-origin: top;
-          transition: transform 1s ease-out;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-        }
-
-        .parchment.open {
-          transform: scaleY(1);
-          animation: parchmentOpen 1.5s ease-out forwards;
-        }
-
-        @keyframes parchmentOpen {
-          0% { transform: scaleY(0) rotateX(90deg); opacity: 0; }
-          50% { transform: scaleY(0.7) rotateX(45deg); opacity: 0.7; }
-          100% { transform: scaleY(1) rotateX(0deg); opacity: 1; }
-        }
-
-        .parchment::before {
-          content: '';
-          position: absolute;
-          top: -5px;
-          left: -5px;
-          right: -5px;
-          bottom: -5px;
-          background: linear-gradient(45deg, #8b4513, #d2691e, #cd853f);
-          border-radius: 15px;
-          z-index: -1;
-        }
-
-        .parchment-content {
-          padding: 40px;
-          height: 100%;
-          overflow-y: auto;
-          color: #2c1810;
-          font-size: 1.1rem;
-          line-height: 1.8;
-          font-family: 'Georgia', serif;
-        }
-
-        .handwritten-text {
-          white-space: pre-wrap;
-          font-family: 'Brush Script MT', cursive, 'Dancing Script', serif;
-          font-size: 1.2rem;
-          line-height: 1.8;
-          color: #2c1810;
-          position: relative;
-          animation: fadeIn 1s forwards;
-        }
-
-        .ink-pen {
-          display: inline-block;
-          margin-left: 2px;
-          animation: penBob 0.6s ease-in-out infinite alternate;
-          font-size: 0.9em;
-        }
-
-        @keyframes penBob {
-          0% { transform: translateY(0px) rotate(-5deg); }
-          100% { transform: translateY(-2px) rotate(5deg); }
         }
 
         .typewriter-text {
@@ -1271,6 +1394,20 @@ Sua história de amor, que começou com um simples comentário sobre matemática
           font-weight: bold;
           text-transform: uppercase;
           letter-spacing: 1px;
+          background: none;
+          user-select: none;
+          -webkit-user-select: none;
+          -moz-user-select: none;
+          -ms-user-select: none;
+        }
+
+        .game-button:focus {
+          outline: none;
+          box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5);
+        }
+
+        .game-button:active {
+          transform: scale(0.98);
         }
 
         .game-button.primary {
@@ -1279,7 +1416,7 @@ Sua história de amor, que começou com um simples comentário sobre matemática
           box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
         }
 
-        .game-button.primary:hover {
+        .game-button.primary:hover:not(.disabled) {
           transform: translateY(-2px);
           box-shadow: 0 6px 20px rgba(255, 107, 107, 0.6);
         }
@@ -1294,11 +1431,13 @@ Sua história de amor, que começou com um simples comentário sobre matemática
           line-height: 1.4;
           white-space: normal;
           text-align: left;
+          font-weight: normal;
         }
 
-        .game-button.choice:hover {
+        .game-button.choice:hover:not(.disabled) {
           background: rgba(255, 255, 255, 1);
           transform: translateY(-2px);
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
 
         .game-button.chapter {
@@ -1309,7 +1448,7 @@ Sua história de amor, que começou com um simples comentário sobre matemática
           padding: 20px 40px;
         }
 
-        .game-button.chapter:hover {
+        .game-button.chapter:hover:not(.disabled) {
           transform: translateY(-3px);
           box-shadow: 0 8px 30px rgba(102, 126, 234, 0.6);
         }
@@ -1321,6 +1460,8 @@ Sua história de amor, que começou com um simples comentário sobre matemática
           animation: finalButtonPulse 2s ease-in-out infinite;
           position: relative;
           overflow: hidden;
+          text-transform: none;
+          font-size: 1.2rem;
         }
 
         .game-button.final::before {
@@ -1348,6 +1489,7 @@ Sua história de amor, que começou com um simples comentário sobre matemática
         .game-button.disabled {
           opacity: 0.6;
           cursor: not-allowed;
+          pointer-events: none;
         }
 
         /* Responsividade */
@@ -1366,25 +1508,69 @@ Sua história de amor, que começou com um simples comentário sobre matemática
             margin: 0 3%;
           }
           
-          .parchment-content {
-            padding: 20px;
-            font-size: 1rem;
-          }
-          
           .game-button {
             padding: 12px 25px;
             font-size: 1rem;
           }
 
-          .handwritten-text {
-            font-size: 1rem;
+          .scene-background::after {
+            font-size: 1.5rem !important;
           }
 
-          .scene-image-container, .main-scene-image {
-            width: 250px;
-            height: 180px;
-            top: 20%;
-            right: 3%;
+          .floating-hearts .heart {
+            font-size: 0.8rem;
+          }
+
+          .scene-image-container {
+            width: 90vw !important;
+            height: 90vw !important;
+            max-width: 600px !important;
+            max-height: 600px !important;
+          }
+
+          .proposal-image, .wedding-ceremony-image {
+            width: 90vw !important;
+            height: 90vw !important;
+            max-width: 600px !important;
+            max-height: 600px !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .chapter-main {
+            font-size: 2rem;
+          }
+          
+          .chapter-sub {
+            font-size: 1.2rem;
+          }
+          
+          .text-box {
+            font-size: 1rem;
+            padding: 15px;
+          }
+          
+          .game-button {
+            padding: 10px 20px;
+            font-size: 0.9rem;
+          }
+
+          .choices-container {
+            gap: 10px;
+          }
+
+          .scene-image-container {
+            width: 95vw !important;
+            height: 95vw !important;
+            max-width: 400px !important;
+            max-height: 400px !important;
+          }
+
+          .proposal-image, .wedding-ceremony-image {
+            width: 95vw !important;
+            height: 95vw !important;
+            max-width: 400px !important;
+            max-height: 400px !important;
           }
         }
       `}</style>
