@@ -557,6 +557,8 @@ Construíram uma família linda, enfrentaram juntos todos os desafios da vida, r
 Sua história de amor, que começou com um simples comentário sobre matemática, se tornou a mais bela equação da vida: amor verdadeiro, eterno e infinito.
 
 💕 FIM 💕`,
+      image: "/images/family.jpg",
+      imageAlt: "Família feliz para sempre",
       conditional: true,
       requires: 'accept_marriage',
       isEnding: true,
